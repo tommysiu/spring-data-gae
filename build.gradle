@@ -1,0 +1,179 @@
+apply plugin: 'war'
+apply plugin: 'eclipse-wtp'
+apply plugin: 'gae'
+
+version = '0.1.0-SNAPSHOT'
+webAppDirName = 'war'
+
+ext {
+   springVersion = '4.0.5.RELEASE'
+   springDataJpaVersion = '1.3.0.RELEASE'
+   appEngineHome = "$System.env.APPENGINE_HOME"
+   appEngineSdkVersion = '1.9.6'
+}
+
+buildscript {
+   repositories {
+      mavenCentral()
+   }
+   dependencies {
+      classpath 'org.gradle.api.plugins:gradle-gae-plugin:0.9'
+   }
+}
+
+repositories {
+   mavenCentral()
+   maven {url 'https://oss.sonatype.org/content/repositories/google-releases/'}
+}
+
+configurations {
+   gaelib
+   reference {
+      transitive = true
+   }
+}
+
+dependencies {
+   providedCompile "javax.servlet:servlet-api:2.5"
+   
+   testCompile "junit:junit:4.+"
+   
+   reference "org.springframework:spring-webmvc:$springVersion"
+   reference "org.springframework.data:spring-data-jpa:$springDataJpaVersion"
+   reference "com.fasterxml.jackson.core:jackson-databind:2.3.1"
+   reference "org.datanucleus:datanucleus-enhancer:3.1.1"
+   reference "org.codehaus.jackson:jackson-mapper-asl:1.9.9"
+   reference "org.slf4j:slf4j-simple:1.7.5"
+   
+   // AppEngine dependencies, copy from APPENGINE_HOME lib folders
+   gaelib files(
+      "$appEngineHome/lib/user/appengine-api-1.0-sdk-${appEngineSdkVersion}.jar", 
+      "$appEngineHome/lib/opt/user/appengine-api-labs/v1/appengine-api-labs.jar",
+      "$appEngineHome/lib/opt/user/appengine-endpoints/v1/appengine-endpoints.jar",
+      "$appEngineHome/lib/opt/user/appengine-endpoints/v1/appengine-endpoints-deps.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/asm-4.0.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/datanucleus-core-3.1.3.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/datanucleus-api-jpa-3.1.3.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/datanucleus-api-jdo-3.1.3.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/datanucleus-appengine-2.1.2.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/geronimo-jpa_2.0_spec-1.0.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/jdo-api-3.0.1.jar",
+      "$appEngineHome/lib/opt/user/datanucleus/v2/jta-1.1.jar",
+      "$appEngineHome/lib/opt/user/jsr107/v1/jsr107cache-1.1.jar",
+      "$appEngineHome/lib/opt/user/jsr107/v1/appengine-jsr107cache-${appEngineSdkVersion}.jar")
+
+   compile configurations.gaelib
+   compile configurations.reference
+   
+   // runtime dependencies
+   runtime "javax.servlet:jstl:1.1.2"
+}
+
+eclipse {
+   // add build commands and specify the project natures
+   project {
+      natures.clear()
+      natures 'org.eclipse.jdt.core.javanature', 
+         'com.google.appengine.eclipse.core.gaeNature',
+         'org.eclipse.wst.common.project.facet.core.nature'
+      buildCommands.clear()
+      buildCommand 'org.eclipse.wst.common.project.facet.core.builder'
+      buildCommand 'org.eclipse.jdt.core.javabuilder'
+      buildCommand 'com.google.gdt.eclipse.core.webAppProjectValidator'
+      buildCommand 'com.google.appengine.eclipse.core.gaeProjectChangeNotifier'
+      buildCommand 'com.google.appengine.eclipse.core.projectValidator'
+      buildCommand 'com.google.appengine.eclipse.core.enhancerbuilder'
+   }
+
+   classpath {
+      defaultOutputDir = file("${project.projectDir}/war/WEB-INF/classes")
+
+      // correct classpaths as needed by GAE eclipse plugin
+      containers.clear()
+      containers 'com.google.appengine.eclipse.core.GAE_CONTAINER', 'org.eclipse.jdt.launching.JRE_CONTAINER'
+
+      // remove compile dependencies from classpath
+      minusConfigurations += configurations.compile
+
+      file {
+         // remove all libraries and web container
+         whenMerged { classpath ->
+            classpath.entries.removeAll {
+               entry -> entry.kind == 'lib' || 
+               (entry.kind == 'con' && entry.path == 'org.eclipse.jst.j2ee.internal.web.container')
+            } 
+            classpath.entries.findAll {
+               entry -> entry.hasProperty('exported') 
+            }*.exported = false
+         }
+
+         // add the reference libraries to classpath
+         withXml {
+            def node = it.asNode()
+            configurations.reference.files.each { file ->
+               node.appendNode('classpathentry', [kind: 'lib', path: 'war/WEB-INF/lib/' + file.name])
+            }
+         }
+      }
+   }
+
+   // GAE application needs Java 1.7
+   wtp {
+      facet {
+         facet name: 'java', version: '1.7'
+      }
+   }
+}
+
+// task to clean WEB-INF/lib folder
+task cleanWarLibDir(type: Delete) {
+   delete fileTree(dir: "war/WEB-INF/lib")
+}
+
+// task to populate WEB-INF/lib folder from the compile dependencies
+task populateWarLib(type: Copy) {
+   into('war/WEB-INF/lib')
+   from configurations.compile
+}
+
+// populate the WEB-INF/lib
+tasks.eclipse.dependsOn('checkenv','populateWarLib')
+
+// task to check the APPENGINE_HOME environment variable and gae sdk version
+task checkenv << {
+   if (System.env.APPENGINE_HOME == null) {
+      throw new GradleException('The environment variable APPENGINE_HOME is not set')
+   }
+
+   // check sdk jar exist
+   def sdkJarName = "$appEngineHome/lib/user/appengine-api-1.0-sdk-${appEngineSdkVersion}.jar"
+   File sdkJar = new File(sdkJarName)
+   if (!sdkJar.exists()) {
+      throw new GradleException("The sdk jar file $sdkJarName does not exist")
+   }
+}
+
+// fix the GAE eclipse prop file
+tasks.eclipse.doLast {
+
+   // write settings file 'com.google.appengine.eclipse.core.prefs'
+   ant.propertyfile(file: ".settings/com.google.appengine.eclipse.core.prefs") {
+      ant.entry(key: "eclipse.preferences.version", value: "1")
+      ant.entry(key: "gaeDatanucleusVersion", value: "v2")
+      ant.entry(key: "gaeHrdEnabled", value: "true")
+   }
+
+   // write settings file 'com.google.gdt.eclipse.core.prefs'
+   ant.propertyfile(file: ".settings/com.google.gdt.eclipse.core.prefs") {
+      ant.entry(key: "eclipse.preferences.version", value: "1")
+      ant.entry(key: "warSrcDir", value: "war")
+      ant.entry(key: "warSrcDirIsOutput", value: "true")
+   }
+}
+
+// populate the WEB-INF/lib folder for running the War plugin
+war.doLast {
+   cleanWarLibDir
+   populateWarLib
+}
+
