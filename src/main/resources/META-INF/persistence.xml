@@ -7,6 +7,7 @@
 
 	<persistence-unit name="jpa.unit">
 		<provider>org.datanucleus.api.jpa.PersistenceProviderImpl</provider>
+		<class>test.springdata.sample.domain.Parent</class>
 		<class>test.springdata.sample.domain.Player</class>
 		<exclude-unlisted-classes />
 		<properties>

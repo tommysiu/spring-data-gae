@@ -1,15 +1,13 @@
 package test.springdata.sample.domain;
 
+import javax.persistence.Basic;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+
+import org.datanucleus.api.jpa.annotations.Extension;
 
 @Entity
-public class Player {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Player extends AbstractEntity {
 
     private String name;
 
@@ -18,19 +16,27 @@ public class Player {
     public Player() {
     }
 
-    public Player(String name, String rank) {
+    public Player(String name, String rank, Parent parent) {
         super();
 
         this.name = name;
         this.rank = rank;
+        this.parent = parent;
     }
 
-    public Long getId() {
-        return id;
+    @Basic
+    @Extension(vendorName = "datanucleus", key = "gae.parent-pk", value = "true")
+    private String parentKey;
+
+    @ManyToOne
+    protected Parent parent;
+
+    public String getParentKey() {
+        return parentKey;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setParentKey(String parentKey) {
+        this.parentKey = parentKey;
     }
 
     public String getName() {
@@ -51,6 +57,7 @@ public class Player {
 
     @Override
     public String toString() {
-        return "Player [name=" + name + ", rank=" + rank + ", getId()=" + getId() + "]";
+        return "Player [name=" + name + ", rank=" + rank + ", parentKey=" + parentKey
+                + ", getId()=" + getId() + "]";
     }
 }
