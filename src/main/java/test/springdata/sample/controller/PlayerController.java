@@ -40,7 +40,7 @@ public class PlayerController {
 
     @RequestMapping(value = "/{id}", method = RequestMethod.GET)
     public @ResponseBody
-    Player getPlayer(@PathVariable("id") String id) {
+    Player getPlayer(@PathVariable("id") Long id) {
         return playerRepository.findOne(id);
     }
 

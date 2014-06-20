@@ -2,11 +2,15 @@ package test.springdata.sample.domain;
 
 import javax.persistence.Basic;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.ManyToOne;
 
 import org.datanucleus.api.jpa.annotations.Extension;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
+@EntityListeners({ PlayerEntityListener.class })
 public class Player extends AbstractEntity {
 
     private String name;
@@ -31,6 +35,7 @@ public class Player extends AbstractEntity {
     @ManyToOne
     protected Parent parent;
 
+    @JsonIgnore
     public String getParentKey() {
         return parentKey;
     }

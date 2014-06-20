@@ -15,7 +15,8 @@
         http://www.springframework.org/schema/data/repository
         http://www.springframework.org/schema/data/repository/spring-repository.xsd">
 
-	<jpa:repositories base-package="test.springdata.sample.repository" />
+	<jpa:repositories base-package="test.springdata.sample.repository"
+		factory-class="test.springdata.sample.repository.gae.CustomRepositoryFactoryBean" />
 
 	<tx:annotation-driven transaction-manager="transactionManager" />
 
