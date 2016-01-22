@@ -1,15 +1,15 @@
 apply plugin: 'war'
 apply plugin: 'eclipse-wtp'
-apply plugin: 'gae'
+apply plugin: 'appengine'
 
 version = '0.1.0-SNAPSHOT'
 webAppDirName = 'war'
 
 ext {
-   springVersion = '4.0.5.RELEASE'
-   springDataJpaVersion = '1.3.0.RELEASE'
+   springVersion = '4.2.4.RELEASE'
+   springDataJpaVersion = '1.9.2.RELEASE'
    appEngineHome = "$System.env.APPENGINE_HOME"
-   appEngineSdkVersion = '1.9.6'
+   appEngineSdkVersion = '1.9.31'
 }
 
 buildscript {
@@ -17,7 +17,7 @@ buildscript {
       mavenCentral()
    }
    dependencies {
-      classpath 'org.gradle.api.plugins:gradle-gae-plugin:0.9'
+      classpath 'com.google.appengine:gradle-appengine-plugin:1.9.30'
    }
 }
 
@@ -93,7 +93,7 @@ eclipse {
       containers 'com.google.appengine.eclipse.core.GAE_CONTAINER', 'org.eclipse.jdt.launching.JRE_CONTAINER'
 
       // remove compile dependencies from classpath
-      minusConfigurations += configurations.compile
+      minusConfigurations += [ project.configurations.compile ]
 
       file {
          // remove all libraries and web container
